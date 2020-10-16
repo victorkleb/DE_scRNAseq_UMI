@@ -5,6 +5,13 @@ The approach closely follows the work of Townes et al. [1] by using
 - multinomial models
 - binomial deviance to filter genes for clustering
 <br />
+The approach closely follows the work of Townes et al. [1] by using
+- multinomial models
+- binomial deviance to filter genes for clustering
+- 3
+- 4
+
+
 Consider a cell clustering with K clusters
 - For each cluster k, the multinomial model gives maximum likelihood estimates of the relative abundance of each gene.  
 - Denote the estimate for gene j as  pi_hat(k, j)
