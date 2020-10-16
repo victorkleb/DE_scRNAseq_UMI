@@ -14,7 +14,9 @@ Consider a cell clustering with K clusters
 <br />
 For each gene j, the range of values
 <br />
+<br />
 r(j) =  max ( pi_hat(k,j)  ) -  min ( pi_hat(k,j)  )  -- max and min taken over k
+<br />
 <br />
 measures differential expression and is correlated with binomial deviance.
 <br />
@@ -31,4 +33,4 @@ For details, please refer to
 <br />
 Reference
 <br />
-1.Townes F W, Hicks S C, Aryee M J  et al.: Feature selection and dimension reduction for single-cell RNA-Seq based on a multinomial model. Genome Biol 20, 295 (2019). https://doi.org/10.118s13059-019-1861-6 
+1. Townes F W, Hicks S C, Aryee M J  et al.: Feature selection and dimension reduction for single-cell RNA-Seq based on a multinomial model. Genome Biol 20, 295 (2019). https://doi.org/10.118s13059-019-1861-6 
