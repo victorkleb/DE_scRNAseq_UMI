@@ -10,7 +10,6 @@ Consider a cell clustering with K clusters
 - For each cluster k, the multinomial model gives maximum likelihood estimates of the relative abundance of each gene.  
 - Denote the estimate for gene j as  pi_hat(k, j)
 <br />
-<br />
 &nbsp;&nbsp;&nbsp;&nbspFor each gene j, the range of values
 <br />
 <br />
