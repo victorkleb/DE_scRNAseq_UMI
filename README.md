@@ -15,7 +15,7 @@ Consider a cell clustering with K clusters
     For each gene j, the range of values
 <br />
 <br />
-    r(j) =  max ( pi_hat(k,j)  ) -  min ( pi_hat(k,j)  )  -- max and min taken over k
+        r(j) =  max ( pi_hat(k,j)  ) -  min ( pi_hat(k,j)  )  -- max and min taken over k
 <br />
 <br />
     measures differential expression and is correlated with binomial deviance.
