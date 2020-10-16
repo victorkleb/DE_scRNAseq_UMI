@@ -12,11 +12,11 @@ Consider a cell clustering with K clusters
 - For each cluster k, the multinomial model gives maximum likelihood estimates of the relative abundance of each gene.  
 - Denote the estimate for gene j as  pi_hat(k, j)
 <br />
-: For each gene j, the range of values
+&nbsp;&nbsp;&nbsp;&nbspFor each gene j, the range of values
 <br />
-: r(j) =  max ( pi_hat(k,j)  ) -  min ( pi_hat(k,j)  )  -- max and min taken over k
+r(j) =  max ( pi_hat(k,j)  ) -  min ( pi_hat(k,j)  )  -- max and min taken over k
 <br />
-: measures differential expression and is correlated with binomial deviance.
+measures differential expression and is correlated with binomial deviance.
 <br />
 <br />
 <br />
