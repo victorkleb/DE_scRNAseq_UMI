@@ -24,10 +24,6 @@ Consider a cell clustering with K clusters
 <br />
 
 For details, please refer to 
-Consider a cell clustering with K clusters
-- For each cluster k, the multinomial model gives maximum likelihood estimates of the relative abundance of each gene.  
-- Denote the estimate for gene j as  pi_hat(k, j)
-
 - example_programs.docx
 - the folder example_programs_Zhengmix8eq: a 6-program stream to analyze the Zhengmix8eq data set
 - the folder example_programs_simulated: a 4-program stream to create and analyze a simulated data set with 2 clusters
@@ -39,4 +35,5 @@ Consider a cell clustering with K clusters
 <br />
 Reference
 <br />
-1. Townes F W, Hicks S C, Aryee M J  et al.: Feature selection and dimension reduction for single-cell RNA-Seq based on a multinomial model. Genome Biol 20, 295 (2019). https://doi.org/10.118s13059-019-1861-6 
+1. x
+2. Townes F W, Hicks S C, Aryee M J  et al.: Feature selection and dimension reduction for single-cell RNA-Seq based on a multinomial model. Genome Biol 20, 295 (2019). https://doi.org/10.118s13059-019-1861-6 
