@@ -1,0 +1,659 @@
+
+
+# https://stackoverflow.com/questions/5284646/rank-items-in-an-array-using-python-numpy-without-sorting-array-twice
+
+
+
+
+
+#########################################################################################
+#########################################################################################
+#                                                                                       #    
+#  start program  compare_z_scores_to_muscat_group_id.py                                # 
+#                                                                                       #   
+#########################################################################################
+
+import pandas as pd
+import numpy  as np
+
+from scipy.stats import rankdata
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+ 
+ 
+
+import pickle
+ 
+from pathlib import Path
+import os
+
+
+
+import sys
+sys.path.append("D:/scRNA-seq_DE/DE_scRNAseq")
+
+
+from  utilities import *
+from FUNCTIONS_DE_scRNAseq  import *
+
+
+pd.options.display.width = 180
+pd.set_option('display.max_columns', 30)
+ 
+#########################################################################################
+
+def plot_consistency ( base_stat ):
+
+  df_ranks_sort_base_stat = df_plot_stats_ranks.sort_values ( [ base_stat ] )
+
+  base_rank_list =   df_ranks_sort_base_stat[base_stat].values.astype (np.int).tolist() 
+  compare_list = stat_list.copy()
+  compare_list.remove ( base_stat )
+
+  df_consistent_fraction = df_ranks_sort_base_stat[[ base_stat ]]
+
+  for stat in compare_list: 
+    compare_ranks_array =   df_ranks_sort_base_stat[ stat ].values
+    consistent_fraction_list = [ ( np.sum ( compare_ranks_array[:i] <=i ) ) / ( 1 + i ) for i in base_rank_list ]
+    df_consistent_fraction [ stat ] = consistent_fraction_list
+
+
+  title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells \n compare Differential Expression - use gene ranks to visualize CONSISTENCY between methods'
+  title2 = '\n muscat pseudo bulk statistics and z-scores from  pi-hat range analysis' 
+  fig, ax1 = plt.subplots()  
+  titl = title1 + title2  
+  plt.title( titl, fontsize=6.5 )
+  
+  for stat in compare_list:   
+    ax1.plot (  df_consistent_fraction[base_stat],	df_consistent_fraction[stat],  c=color_dict[ stat ], linewidth=0.5,  label=stat )
+
+  ax1.legend ( loc = 'lower right' , prop={'size': 5})
+  ax1.set_xlabel ( base_stat + ' descending rank \n highest Differential Expression is on left', fontsize=6 )	
+  ax1.set_ylabel ( 'fraction of genes with equal or higher \n Differential Expression rank' , fontsize=6 )	
+  ax1.tick_params(labelsize=5 )           
+  pdf_pages.savefig(fig, transparent=True )
+
+
+  
+
+def plot_inconsistency ( base_stat ):
+
+  df_ranks_sort_base_stat = df_plot_stats_ranks.sort_values ( [ base_stat ] )
+
+  base_rank_list =   df_ranks_sort_base_stat[base_stat].values.astype (np.int).tolist() 
+  compare_list = stat_list.copy()
+  compare_list.remove ( base_stat )
+
+  df_inconsistent_ranks = df_ranks_sort_base_stat[[ base_stat ]]
+
+  for stat in compare_list: 
+    compare_ranks_array =   df_ranks_sort_base_stat[ stat ].values
+    inconsistent_rank_list = [  np.max ( compare_ranks_array[:i] )  for i in base_rank_list ]
+    df_inconsistent_ranks [ stat ] = inconsistent_rank_list
+
+	
+  title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells \n compare Differential Expression - use gene ranks to visualize INCONSISTENCY between methods'  
+  title2 = '\n muscat pseudo bulk statistics and z-scores from  pi-hat range analysis' 
+  fig, ax1 = plt.subplots()  
+  titl = title1 + title2  
+  plt.title( titl, fontsize=6.5 )
+  
+  for stat in compare_list:   
+    ax1.plot (  df_inconsistent_ranks[base_stat],	df_inconsistent_ranks[stat],  c=color_dict[ stat ], linewidth=0.5,  label=stat )
+
+  ax1.legend ( loc = 'lower right' , prop={'size': 5})
+  ax1.set_xlabel ( base_stat + ' descending rank \n highest Differential Expression is on left', fontsize=6 )	
+  ax1.set_ylabel ( 'maximum rank in alternate methods' , fontsize=6 )	
+  ax1.tick_params(labelsize=5 )           
+  pdf_pages.savefig(fig, transparent=True )
+
+
+  
+  
+
+pctl_list =  [ .001, .005, .01, .05, .1, .25,.5,.75,.9,.95, .96, .97, .98, .99,.995,.999 ]
+
+#########################################################################################  
+ 
+logfile_txt = "compare_z_scores_to_muscat_group_id B cells.txt"
+plot_pdf = "compare_z_scores_to_muscat_group_id B cells.pdf"
+
+df_pi_hat_z_scores_41_pkl =  "pi_hat_z_scores_true_v_randomized_cell_clusters_group_id B cells_41_randomizations.pkl"
+muscat_edgeR_csv = "edgeR_DE_B_cells.csv"
+muscat_DESeq2_csv = "DESeq2_DE_B_cells.csv"
+muscat_limma_trend_csv = "limma_trend_DE_B_cells.csv"
+muscat_limma_voom_csv = "limma_voom_DE_B_cells.csv"
+
+
+data_path = Path ( r"D:/scRNA-seq_DE/Crowell_Kang18_8vs8" )
+
+
+
+####  log output
+logfile_dsn  =  data_path / logfile_txt
+logfile = open ( logfile_dsn,'w')
+
+##  PDF output
+plot_dsn = data_path /  plot_pdf
+pdf_pages = PdfPages( plot_dsn )
+
+
+
+# pickle input 
+df_pi_hat_z_scores_dsn = data_path / df_pi_hat_z_scores_41_pkl
+
+# csv input
+muscat_edgeR_dsn = data_path / muscat_edgeR_csv
+muscat_DESeq2_dsn =  data_path / muscat_DESeq2_csv
+muscat_limma_trend_dsn = data_path / muscat_limma_trend_csv
+muscat_limma_voom_dsn =  data_path / muscat_limma_voom_csv
+
+######################################################################################################################################
+
+color_dict = { 'z_score':'black', 'edgeR_F':'red',  'abs_DESeq2_stat':'blue', 'abs_limma_trend_t':'cyan', 'abs_limma_voom_t':'violet' }
+
+
+
+df_z_scores = pd.read_pickle ( df_pi_hat_z_scores_dsn )
+plog ( logfile, '\n\n\n\n df_z_scores: \n\n', df_z_scores )
+plog ( logfile, '\n\n\n\n distribution of z_scores and p-values: \n', df_z_scores[['z_score', 'p_value', 'adj_p_value']] .describe ( percentiles = pctl_list ) )
+
+
+df_muscat_edgeR = pd.read_csv ( muscat_edgeR_dsn )[['gene', 'F','p_val', 'p_adj.loc']].set_index ( ['gene'] ).rename ( columns={ 'p_val':'edgeR_p_val', 'p_adj.loc':'edgeR_p_adj', 'F':'edgeR_F'} )
+plog ( logfile, '\n\n\n\n df_muscat_edgeR: \n\n', df_muscat_edgeR )
+
+df_muscat_DESeq2 = pd.read_csv ( muscat_DESeq2_dsn )[['gene', 'stat','p_val', 'p_adj.loc']].set_index ( ['gene'] ).rename ( columns={ 'p_val':'DESeq2_p_val', 'p_adj.loc':'DESeq2_p_adj', 'stat':'DESeq2_stat'} )
+df_muscat_DESeq2['abs_DESeq2_stat'] = np.abs ( df_muscat_DESeq2['DESeq2_stat'] )
+plog ( logfile, '\n\n\n\n df_muscat_DESeq2: \n\n', df_muscat_DESeq2 )
+
+df_muscat_limma_trend = pd.read_csv ( muscat_limma_trend_dsn )[['gene', 't','p_val', 'p_adj.loc']].set_index ( ['gene'] ).rename ( columns={ 'p_val':'limma_trend_p_val', 'p_adj.loc':'limma_trend_p_adj', 't':'limma_trend_t'} )
+df_muscat_limma_trend['abs_limma_trend_t'] = np.abs ( df_muscat_limma_trend['limma_trend_t'] )
+plog ( logfile, '\n\n\n\n df_muscat_limma_trend: \n\n', df_muscat_limma_trend )
+
+df_muscat_limma_voom = pd.read_csv ( muscat_limma_voom_dsn )[['gene', 't','p_val', 'p_adj.loc']].set_index ( ['gene'] ).rename ( columns={ 'p_val':'limma_voom_p_val', 'p_adj.loc':'limma_voom_p_adj', 't':'limma_voom_t'} )
+df_muscat_limma_voom['abs_limma_voom_t'] = np.abs ( df_muscat_limma_voom['limma_voom_t'] )
+plog ( logfile, '\n\n\n\n df_muscat_limma_voom: \n\n', df_muscat_limma_voom )
+
+df_muscat_stats = pd.concat ( [ df_muscat_edgeR, df_muscat_DESeq2, df_muscat_limma_trend, df_muscat_limma_voom ], axis=1, sort=False )
+plog ( logfile, '\n\n\n\n df_muscat_stats: \n\n', df_muscat_stats )
+
+
+
+df_z_scores['muscat_match'] = False
+df_z_scores['muscat_match'].loc [ df_muscat_edgeR.index ] = True
+plog ( logfile, '\n\n\n\n df_z_scores[muscat_match].sum(): \n\n', df_z_scores['muscat_match'].sum() )
+
+plog ( logfile, '\n\n\n\n restrict:  z_scores match to muscat pseudo-bulk output \n distribution of z_scores and p-values: \n', \
+df_z_scores[['z_score', 'p_value']].loc [  df_z_scores['muscat_match'] ].describe ( percentiles = pctl_list ) )
+plog ( logfile, '\n\n\n\n restrict:  z_scores NO match to muscat pseudo-bulk output \n distribution of z_scores and p-values: \n', \
+df_z_scores[['z_score', 'p_value']].loc [ ~ df_z_scores['muscat_match'] ].describe ( percentiles = pctl_list ) )
+
+df_z_scores_muscat_match = df_z_scores.merge ( df_muscat_stats, how='inner', left_index=True, right_index=True )
+df_z_scores_muscat_match['log10_edgeR_F'] = np.log10 ( df_z_scores_muscat_match['edgeR_F'] )
+plog ( logfile, '\n\n\n\n df_z_scores_muscat_match: \n\n', df_z_scores_muscat_match )
+
+
+df_corr = df_z_scores_muscat_match[['p_value', 'edgeR_p_val', 'DESeq2_p_val', 'limma_trend_p_val', 'limma_voom_p_val', 'z_score', 'edgeR_F',  'abs_DESeq2_stat', 'abs_limma_trend_t', 'abs_limma_voom_t']].corr( method='spearman' )
+plog ( logfile, '\n\n\n\n df_corr: \n\n', df_corr )
+     
+df_corr = df_z_scores_muscat_match[['p_value', 'edgeR_p_val', 'DESeq2_p_val', 'limma_trend_p_val', 'limma_voom_p_val' ]].corr( method='spearman' )
+plog ( logfile, '\n\n\n\n df_corr: \n\n', df_corr )
+pdline ( logfile )
+
+
+stat_list = ['z_score', 'edgeR_F',  'abs_DESeq2_stat', 'abs_limma_trend_t', 'abs_limma_voom_t']
+df_plot_stats_ranks =  df_z_scores_muscat_match[ stat_list ].rank ( ascending=False )
+
+
+
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare pi-hat range analysis to muscat pseudo bulk \n edgeR F statistic vs z-scores ' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['z_score'],	df_z_scores_muscat_match['log10_edgeR_F'],  c='k', s=1  )
+ax1.set_xlabel ( 'z_score', fontsize=7 )	
+ax1.set_ylabel ( 'log10 (edgeR_F)' , fontsize=7 )	
+ax1.tick_params(labelsize=6)           
+pdf_pages.savefig(fig, transparent=True )
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare pi-hat range analysis to muscat pseudo bulk \n DESeq2_stat vs z-scores ' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['z_score'],	df_z_scores_muscat_match['abs_DESeq2_stat'],  c='k', s=1  )
+ax1.set_xlabel ( 'z_score', fontsize=7 )	
+ax1.set_ylabel ( 'abs_DESeq2_stat' , fontsize=7 )	
+ax1.tick_params(labelsize=6)           
+pdf_pages.savefig(fig, transparent=True )
+
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare pi-hat range analysis to muscat pseudo bulk \n limma_trend_t vs z-scores ' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['z_score'],	df_z_scores_muscat_match['abs_limma_trend_t'],  c='k', s=1  )
+ax1.set_xlabel ( 'z_score', fontsize=7 )	
+ax1.set_ylabel ( 'abs_limma_trend_t' , fontsize=7 )	
+ax1.tick_params(labelsize=6)         
+pdf_pages.savefig(fig, transparent=True )
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare pi-hat range analysis to muscat pseudo bulk \n abs_limma_voom_t vs z-scores ' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['z_score'],	df_z_scores_muscat_match['abs_limma_voom_t'],  c='k', s=1  )
+ax1.set_xlabel ( 'z_score', fontsize=7 )	
+ax1.set_ylabel ( 'abs_limma_voom_t' , fontsize=7 )	
+ax1.tick_params(labelsize=6)           
+pdf_pages.savefig(fig, transparent=True )
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare muscat pseudo bulk \n abs_DESeq2_stat vs edgeR F statistic' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['log10_edgeR_F'],	df_z_scores_muscat_match['abs_DESeq2_stat'],  c='k', s=1  )
+ax1.set_xlabel ( 'log10 (edgeR_F)' , fontsize=7 )	
+ax1.set_ylabel ( 'abs_DESeq2_stat', fontsize=7 )	
+ax1.tick_params(labelsize=6)     
+      
+pdf_pages.savefig(fig, transparent=True )
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare muscat pseudo bulk \n abs_limma_trend_t vs edgeR F statistic' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['log10_edgeR_F'],	df_z_scores_muscat_match['abs_limma_trend_t'],  c='k', s=1  )
+ax1.set_xlabel ( 'log10 (edgeR_F)' , fontsize=7 )	
+ax1.set_ylabel ( 'abs_limma_trend_t', fontsize=7 )	
+ax1.tick_params(labelsize=6)     
+      
+pdf_pages.savefig(fig, transparent=True )
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare muscat pseudo bulk \n abs_limma_voom_t vs edgeR F statistic' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['log10_edgeR_F'],	df_z_scores_muscat_match['abs_limma_voom_t'],  c='k', s=1  )
+ax1.set_xlabel ( 'log10 (edgeR_F)' , fontsize=7 )	
+ax1.set_ylabel ( 'abs_limma_voom_t', fontsize=7 )	
+ax1.tick_params(labelsize=6)     
+      
+pdf_pages.savefig(fig, transparent=True )
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare muscat pseudo bulk \n abs_limma_trend_t vs abs_DESeq2_stat' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['abs_DESeq2_stat'],	df_z_scores_muscat_match['abs_limma_trend_t'],  c='k', s=1  )
+ax1.set_xlabel ( 'abs_DESeq2_stat' , fontsize=7 )	
+ax1.set_ylabel ( 'abs_limma_trend_t', fontsize=7 )	
+ax1.tick_params(labelsize=6)     
+      
+pdf_pages.savefig(fig, transparent=True )
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare muscat pseudo bulk \n abs_limma_voom_t vs abs_DESeq2_stat' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['abs_DESeq2_stat'],	df_z_scores_muscat_match['abs_limma_voom_t'],  c='k', s=1  )
+ax1.set_xlabel ( 'abs_DESeq2_stat' , fontsize=7 )	
+ax1.set_ylabel ( 'abs_limma_voom_t', fontsize=7 )	
+ax1.tick_params(labelsize=6)     
+      
+pdf_pages.savefig(fig, transparent=True )
+
+
+title1 = 'Crowell_Kang18_8vs8 scRNA-seq data - B cells: \n compare muscat pseudo bulk \n abs_limma_voom_t vs abs_limma_trend_t' 
+fig, ax1 = plt.subplots()  
+titl = title1  
+plt.title( titl, fontsize=5.5 )
+  
+ax1.scatter (  df_z_scores_muscat_match['abs_limma_trend_t'],	df_z_scores_muscat_match['abs_limma_voom_t'],  c='k', s=1  )
+ax1.set_xlabel ( 'abs_limma_trend_t' , fontsize=7 )	
+ax1.set_ylabel ( 'abs_limma_voom_t', fontsize=7 )	
+ax1.tick_params(labelsize=6)     
+      
+pdf_pages.savefig(fig, transparent=True )
+
+
+
+
+for base_stat in stat_list:  
+  plot_consistency  ( base_stat )
+
+  
+for base_stat in stat_list: 
+  plot_inconsistency ( base_stat )
+
+
+pdf_pages.close()  
+ 
+
+
+logfile.close()
+
+#########################################################################################
+#                                                                                       #    
+#  end program  compare_z_scores_to_muscat_group_id.py                                  # 
+#                                                                                       #   
+#########################################################################################
+#########################################################################################
+
+
+
+
+
+
+
+ df_z_scores: 
+
+              mean       std         range    z_score       p_value   adj_p_value
+NOC2L     0.000009  0.000007  1.543549e-05   0.909729  1.814826e-01  3.631113e-01
+HES4      0.000004  0.000004  3.463846e-05   7.045042  9.270306e-13  1.154479e-11
+ISG15     0.000169  0.000120  8.106433e-03  66.195666  0.000000e+00  0.000000e+00
+TNFRSF18  0.000010  0.000007  6.108006e-05   6.772200  6.341923e-12  7.609148e-11
+TNFRSF4   0.000006  0.000004  2.131149e-05   3.821697  6.626821e-05  3.762269e-04
+...            ...       ...           ...        ...           ...           ...
+PTTG1IP   0.000003  0.000002  5.014292e-07  -1.358781  9.128920e-01  9.258452e-01
+ITGB2     0.000003  0.000002  3.812275e-06   0.381319  3.514832e-01  5.868186e-01
+FAM207A   0.000005  0.000005  7.335231e-06   0.356176  3.608544e-01  5.948976e-01
+DIP2A     0.000002  0.000001  3.992287e-06   1.731176  4.171016e-02  1.129772e-01
+PRMT2     0.000010  0.000007  7.624488e-06  -0.265368  6.046371e-01  8.171815e-01
+
+[6563 rows x 6 columns]
+
+
+
+ distribution of z_scores and p-values: 
+           z_score        p_value    adj_p_value
+count  6563.000000   6.563000e+03   6.563000e+03
+mean      2.294870   3.132674e-01   4.173056e-01
+std       5.398632   3.266279e-01   3.735608e-01
+min      -2.811068   0.000000e+00   0.000000e+00
+0.1%     -1.668677   0.000000e+00   0.000000e+00
+0.5%     -1.495136  9.717794e-254  1.878905e-251
+1%       -1.411582  4.151720e-155  4.066882e-153
+5%       -1.161447   7.044275e-24   1.404699e-22
+10%      -0.957771   2.427467e-09   2.424120e-08
+25%      -0.312815   2.507005e-03   1.002343e-02
+50%       0.908990   1.816776e-01   3.631113e-01
+75%       2.806135   6.227895e-01   8.302494e-01
+90%       5.852089   8.309109e-01   9.227147e-01
+95%      10.007993   8.772700e-01   9.227204e-01
+96%      11.949506   8.894072e-01   9.227204e-01
+97%      14.590679   8.955543e-01   9.227204e-01
+98%      19.772441   9.059398e-01   9.241022e-01
+99%      26.580856   9.209635e-01   9.302647e-01
+99.5%    34.007316   9.325602e-01   9.372457e-01
+99.9%    58.971769   9.523952e-01   9.533483e-01
+max      73.705568   9.975311e-01   9.975311e-01
+
+
+
+ df_muscat_edgeR: 
+
+             edgeR_F   edgeR_p_val   edgeR_p_adj
+gene                                            
+NOC2L       1.731074  2.153125e-01  3.751282e-01
+ISG15     912.492175  2.366009e-21  9.307880e-19
+TNFRSF18   26.120734  2.716993e-05  1.895151e-04
+CPSF3L      0.356820  5.851684e-01  7.422244e-01
+AURKAIP1    0.015519  9.495780e-01  9.768933e-01
+...              ...           ...           ...
+MX1       236.419503  2.462356e-14  9.138593e-13
+U2AF1       0.520559  4.772278e-01  6.514275e-01
+CSTB        7.249810  1.240854e-02  4.088375e-02
+PFKL        6.110833  2.051421e-02  6.104607e-02
+PRMT2       0.017445  8.959666e-01  9.536614e-01
+
+[1967 rows x 3 columns]
+
+
+
+ df_muscat_DESeq2: 
+
+          DESeq2_stat  DESeq2_p_val  DESeq2_p_adj  abs_DESeq2_stat
+gene                                                              
+NOC2L       -1.113149  2.656442e-01  4.628186e-01         1.113149
+ISG15       38.970887  0.000000e+00  0.000000e+00        38.970887
+TNFRSF18    -4.285430  1.823859e-05  1.199843e-04         4.285430
+CPSF3L      -0.484185  6.282545e-01  7.791781e-01         0.484185
+AURKAIP1     0.026897  9.785415e-01  9.902348e-01         0.026897
+...               ...           ...           ...              ...
+MX1         10.329171  5.200827e-25  1.175865e-23        10.329171
+U2AF1       -0.504998  6.135600e-01  7.711646e-01         0.504998
+CSTB        -2.325539  2.004317e-02  6.592795e-02         2.325539
+PFKL        -1.780243  7.503628e-02  1.855542e-01         1.780243
+PRMT2        0.077154  9.385007e-01  9.736450e-01         0.077154
+
+[1967 rows x 4 columns]
+
+
+
+ df_muscat_limma_trend: 
+
+          limma_trend_t  limma_trend_p_val  limma_trend_p_adj  abs_limma_trend_t
+gene                                                                            
+NOC2L         -0.816035           0.422788           0.693225           0.816035
+ISG15          5.433423           0.000016           0.001063           5.433423
+TNFRSF18      -2.757616           0.011160           0.117655           2.757616
+CPSF3L        -0.636528           0.530669           0.752036           0.636528
+AURKAIP1      -0.734391           0.470076           0.721752           0.734391
+...                 ...                ...                ...                ...
+MX1            5.114432           0.000034           0.001649           5.114432
+U2AF1         -1.063338           0.298582           0.632879           1.063338
+CSTB          -1.988911           0.058641           0.333244           1.988911
+PFKL          -1.866643           0.074653           0.380422           1.866643
+PRMT2         -0.984791           0.334896           0.648366           0.984791
+
+[1967 rows x 4 columns]
+
+
+
+ df_muscat_limma_voom: 
+
+          limma_voom_t  limma_voom_p_val  limma_voom_p_adj  abs_limma_voom_t
+gene                                                                        
+NOC2L        -1.242353      2.302345e-01      3.724269e-01          1.242353
+ISG15        29.077645      1.896399e-16      9.325541e-14         29.077645
+TNFRSF18     -5.484222      3.434465e-05      2.456579e-04          5.484222
+CPSF3L       -0.592083      5.612454e-01      7.076729e-01          0.592083
+AURKAIP1     -0.118371      9.070997e-01      9.494390e-01          0.118371
+...                ...               ...               ...               ...
+MX1          10.910287      2.611532e-09      4.756374e-08         10.910287
+U2AF1        -0.962799      3.485541e-01      5.044930e-01          0.962799
+CSTB         -2.772705      1.264520e-02      3.880360e-02          2.772705
+PFKL         -2.988035      7.962482e-03      2.650119e-02          2.988035
+PRMT2        -0.177835      8.608617e-01      9.202799e-01          0.177835
+
+[1967 rows x 4 columns]
+
+
+
+ df_muscat_stats: 
+
+             edgeR_F   edgeR_p_val   edgeR_p_adj  DESeq2_stat  DESeq2_p_val  DESeq2_p_adj  abs_DESeq2_stat  limma_trend_t  limma_trend_p_val  limma_trend_p_adj  \
+gene                                                                                                                                                              
+NOC2L       1.731074  2.153125e-01  3.751282e-01    -1.113149  2.656442e-01  4.628186e-01         1.113149      -0.816035           0.422788           0.693225   
+ISG15     912.492175  2.366009e-21  9.307880e-19    38.970887  0.000000e+00  0.000000e+00        38.970887       5.433423           0.000016           0.001063   
+TNFRSF18   26.120734  2.716993e-05  1.895151e-04    -4.285430  1.823859e-05  1.199843e-04         4.285430      -2.757616           0.011160           0.117655   
+CPSF3L      0.356820  5.851684e-01  7.422244e-01    -0.484185  6.282545e-01  7.791781e-01         0.484185      -0.636528           0.530669           0.752036   
+AURKAIP1    0.015519  9.495780e-01  9.768933e-01     0.026897  9.785415e-01  9.902348e-01         0.026897      -0.734391           0.470076           0.721752   
+...              ...           ...           ...          ...           ...           ...              ...            ...                ...                ...   
+MX1       236.419503  2.462356e-14  9.138593e-13    10.329171  5.200827e-25  1.175865e-23        10.329171       5.114432           0.000034           0.001649   
+U2AF1       0.520559  4.772278e-01  6.514275e-01    -0.504998  6.135600e-01  7.711646e-01         0.504998      -1.063338           0.298582           0.632879   
+CSTB        7.249810  1.240854e-02  4.088375e-02    -2.325539  2.004317e-02  6.592795e-02         2.325539      -1.988911           0.058641           0.333244   
+PFKL        6.110833  2.051421e-02  6.104607e-02    -1.780243  7.503628e-02  1.855542e-01         1.780243      -1.866643           0.074653           0.380422   
+PRMT2       0.017445  8.959666e-01  9.536614e-01     0.077154  9.385007e-01  9.736450e-01         0.077154      -0.984791           0.334896           0.648366   
+
+          abs_limma_trend_t  limma_voom_t  limma_voom_p_val  limma_voom_p_adj  abs_limma_voom_t  
+gene                                                                                             
+NOC2L              0.816035     -1.242353      2.302345e-01      3.724269e-01          1.242353  
+ISG15              5.433423     29.077645      1.896399e-16      9.325541e-14         29.077645  
+TNFRSF18           2.757616     -5.484222      3.434465e-05      2.456579e-04          5.484222  
+CPSF3L             0.636528     -0.592083      5.612454e-01      7.076729e-01          0.592083  
+AURKAIP1           0.734391     -0.118371      9.070997e-01      9.494390e-01          0.118371  
+...                     ...           ...               ...               ...               ...  
+MX1                5.114432     10.910287      2.611532e-09      4.756374e-08         10.910287  
+U2AF1              1.063338     -0.962799      3.485541e-01      5.044930e-01          0.962799  
+CSTB               1.988911     -2.772705      1.264520e-02      3.880360e-02          2.772705  
+PFKL               1.866643     -2.988035      7.962482e-03      2.650119e-02          2.988035  
+PRMT2              0.984791     -0.177835      8.608617e-01      9.202799e-01          0.177835  
+
+[1967 rows x 15 columns]
+
+
+
+ df_z_scores[muscat_match].sum(): 
+
+1967
+
+
+
+ restrict:  z_scores match to muscat pseudo-bulk output 
+ distribution of z_scores and p-values: 
+           z_score        p_value
+count  1967.000000   1.967000e+03
+mean      4.942601   2.205657e-01
+std       8.623018   3.075405e-01
+min      -1.683499   0.000000e+00
+0.1%     -1.607437   0.000000e+00
+0.5%     -1.451286   0.000000e+00
+1%       -1.329804   0.000000e+00
+5%       -1.076254  8.155469e-114
+10%      -0.799927   1.482552e-44
+25%       0.200143   4.983854e-09
+50%       2.099270   1.789654e-02
+75%       5.731279   4.206844e-01
+90%      13.958766   7.881229e-01
+95%      22.643199   8.590931e-01
+96%      25.081587   8.660066e-01
+97%      28.331667   8.839744e-01
+98%      31.632405   8.962937e-01
+99%      41.410351   9.082084e-01
+99.5%    53.297623   9.266495e-01
+99.9%    66.442390   9.460132e-01
+max      73.705568   9.538607e-01
+
+
+
+ restrict:  z_scores NO match to muscat pseudo-bulk output 
+ distribution of z_scores and p-values: 
+           z_score        p_value
+count  4596.000000   4.596000e+03
+mean      1.161692   3.529419e-01
+std       2.349956   3.265501e-01
+min      -2.811068  8.399185e-107
+0.1%     -1.706934   2.367613e-77
+0.5%     -1.511709   5.714337e-36
+1%       -1.438629   1.958611e-23
+5%       -1.197228   7.448792e-08
+10%      -1.006076   5.928456e-05
+25%      -0.434874   1.873835e-02
+50%       0.584053   2.795922e-01
+75%       2.080533   6.681730e-01
+90%       3.849093   8.428105e-01
+95%       5.253867   8.843912e-01
+96%       5.731444   8.917919e-01
+97%       6.477597   8.988235e-01
+98%       7.803115   9.086147e-01
+99%       9.908092   9.248721e-01
+99.5%    12.466098   9.346958e-01
+99.9%    18.761892   9.560828e-01
+max      21.919857   9.975311e-01
+
+
+
+ df_z_scores_muscat_match: 
+
+              mean       std     range    z_score       p_value   adj_p_value  muscat_match     edgeR_F   edgeR_p_val   edgeR_p_adj  DESeq2_stat  DESeq2_p_val  DESeq2_p_adj  \
+NOC2L     0.000009  0.000007  0.000015   0.909729  1.814826e-01  3.631113e-01          True    1.731074  2.153125e-01  3.751282e-01    -1.113149  2.656442e-01  4.628186e-01   
+ISG15     0.000169  0.000120  0.008106  66.195666  0.000000e+00  0.000000e+00          True  912.492175  2.366009e-21  9.307880e-19    38.970887  0.000000e+00  0.000000e+00   
+TNFRSF18  0.000010  0.000007  0.000061   6.772200  6.341923e-12  7.609148e-11          True   26.120734  2.716993e-05  1.895151e-04    -4.285430  1.823859e-05  1.199843e-04   
+CPSF3L    0.000007  0.000004  0.000007   0.148014  4.411659e-01  6.788679e-01          True    0.356820  5.851684e-01  7.422244e-01    -0.484185  6.282545e-01  7.791781e-01   
+AURKAIP1  0.000012  0.000008  0.000012   0.030428  4.878627e-01  7.221117e-01          True    0.015519  9.495780e-01  9.768933e-01     0.026897  9.785415e-01  9.902348e-01   
+...            ...       ...       ...        ...           ...           ...           ...         ...           ...           ...          ...           ...           ...   
+MX1       0.000053  0.000034  0.001982  56.433190  0.000000e+00  0.000000e+00          True  236.419503  2.462356e-14  9.138593e-13    10.329171  5.200827e-25  1.175865e-23   
+U2AF1     0.000019  0.000016  0.000044   1.599903  5.481000e-02  1.404600e-01          True    0.520559  4.772278e-01  6.514275e-01    -0.504998  6.135600e-01  7.711646e-01   
+CSTB      0.000014  0.000009  0.000073   6.406886  7.426088e-11  8.274603e-10          True    7.249810  1.240854e-02  4.088375e-02    -2.325539  2.004317e-02  6.592795e-02   
+PFKL      0.000006  0.000005  0.000027   4.145056  1.698654e-05  1.083408e-04          True    6.110833  2.051421e-02  6.104607e-02    -1.780243  7.503628e-02  1.855542e-01   
+PRMT2     0.000010  0.000007  0.000008  -0.265368  6.046371e-01  8.171815e-01          True    0.017445  8.959666e-01  9.536614e-01     0.077154  9.385007e-01  9.736450e-01   
+
+          abs_DESeq2_stat  limma_trend_t  limma_trend_p_val  limma_trend_p_adj  abs_limma_trend_t  limma_voom_t  limma_voom_p_val  limma_voom_p_adj  abs_limma_voom_t  \
+NOC2L            1.113149      -0.816035           0.422788           0.693225           0.816035     -1.242353      2.302345e-01      3.724269e-01          1.242353   
+ISG15           38.970887       5.433423           0.000016           0.001063           5.433423     29.077645      1.896399e-16      9.325541e-14         29.077645   
+TNFRSF18         4.285430      -2.757616           0.011160           0.117655           2.757616     -5.484222      3.434465e-05      2.456579e-04          5.484222   
+CPSF3L           0.484185      -0.636528           0.530669           0.752036           0.636528     -0.592083      5.612454e-01      7.076729e-01          0.592083   
+AURKAIP1         0.026897      -0.734391           0.470076           0.721752           0.734391     -0.118371      9.070997e-01      9.494390e-01          0.118371   
+...                   ...            ...                ...                ...                ...           ...               ...               ...               ...   
+MX1             10.329171       5.114432           0.000034           0.001649           5.114432     10.910287      2.611532e-09      4.756374e-08         10.910287   
+U2AF1            0.504998      -1.063338           0.298582           0.632879           1.063338     -0.962799      3.485541e-01      5.044930e-01          0.962799   
+CSTB             2.325539      -1.988911           0.058641           0.333244           1.988911     -2.772705      1.264520e-02      3.880360e-02          2.772705   
+PFKL             1.780243      -1.866643           0.074653           0.380422           1.866643     -2.988035      7.962482e-03      2.650119e-02          2.988035   
+PRMT2            0.077154      -0.984791           0.334896           0.648366           0.984791     -0.177835      8.608617e-01      9.202799e-01          0.177835   
+
+          log10_edgeR_F  
+NOC2L          0.238316  
+ISG15          2.960229  
+TNFRSF18       1.416985  
+CPSF3L        -0.447551  
+AURKAIP1      -1.809147  
+...                 ...  
+MX1            2.373683  
+U2AF1         -0.283530  
+CSTB           0.860327  
+PFKL           0.786100  
+PRMT2         -1.758320  
+
+[1967 rows x 23 columns]
+
+
+
+ df_corr: 
+
+                    p_value  edgeR_p_val  DESeq2_p_val  limma_trend_p_val  limma_voom_p_val   z_score   edgeR_F  abs_DESeq2_stat  abs_limma_trend_t  abs_limma_voom_t
+p_value            1.000000     0.894833      0.865539           0.760922          0.878803 -0.999999 -0.892955        -0.865539          -0.760934         -0.878803
+edgeR_p_val        0.894833     1.000000      0.988350           0.634604          0.975723 -0.894839 -0.998479        -0.988350          -0.634612         -0.975723
+DESeq2_p_val       0.865539     0.988350      1.000000           0.590957          0.956046 -0.865546 -0.989537        -1.000000          -0.590966         -0.956046
+limma_trend_p_val  0.760922     0.634604      0.590957           1.000000          0.642702 -0.760926 -0.634785        -0.590957          -1.000000         -0.642702
+limma_voom_p_val   0.878803     0.975723      0.956046           0.642702          1.000000 -0.878810 -0.973130        -0.956046          -0.642712         -1.000000
+z_score           -0.999999    -0.894839     -0.865546          -0.760926         -0.878810  1.000000  0.892961         0.865546           0.760937          0.878810
+edgeR_F           -0.892955    -0.998479     -0.989537          -0.634785         -0.973130  0.892961  1.000000         0.989537           0.634794          0.973130
+abs_DESeq2_stat   -0.865539    -0.988350     -1.000000          -0.590957         -0.956046  0.865546  0.989537         1.000000           0.590966          0.956046
+abs_limma_trend_t -0.760934    -0.634612     -0.590966          -1.000000         -0.642712  0.760937  0.634794         0.590966           1.000000          0.642712
+abs_limma_voom_t  -0.878803    -0.975723     -0.956046          -0.642702         -1.000000  0.878810  0.973130         0.956046           0.642712          1.000000
+
+
+
+ df_corr: 
+
+                    p_value  edgeR_p_val  DESeq2_p_val  limma_trend_p_val  limma_voom_p_val
+p_value            1.000000     0.894833      0.865539           0.760922          0.878803
+edgeR_p_val        0.894833     1.000000      0.988350           0.634604          0.975723
+DESeq2_p_val       0.865539     0.988350      1.000000           0.590957          0.956046
+limma_trend_p_val  0.760922     0.634604      0.590957           1.000000          0.642702
+limma_voom_p_val   0.878803     0.975723      0.956046           0.642702          1.000000
+
+
+--------------------------------------------------------------------------
+
