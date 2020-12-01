@@ -38,6 +38,7 @@ For details, please refer to
 
 Update  December 1, 2020
 <br />
+<br />
 On the suggestion of a collaborator, we began to explore data studied by Crowell et al. in [2].
 <br />
 For details, please refer to 
@@ -54,4 +55,5 @@ For details, please refer to
 References
 <br />
 1. Townes F W, Hicks S C, Aryee M J  et al.: Feature selection and dimension reduction for single-cell RNA-Seq based on a multinomial model. Genome Biol 20, 295 (2019). https://doi.org/10.118s13059-019-1861-6 
+<br />
 2. Crowell H L, Soneson C, Germain P, et al.: On the discovery of subpopulation-specific state transitions from multi-sample multi-condition single-cell RNA sequencing data. bioRxiv; 2019. DOI: 10.1101/713412.
