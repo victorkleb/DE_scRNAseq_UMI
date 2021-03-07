@@ -1,5 +1,3 @@
-## DE_scRNAseq_UMI
-
 The ratio of **changes in binomial deviance** between apprpriate multinomial models identifies Differentially Expressed genes.  This approach draws on the work of Townes et al. [1]  in which binomial deviance is proposed to identify informative genes for clustering. 
 <br /><br />
 Given 
@@ -47,7 +45,7 @@ The two simulated data sets differ in the fold change parameter for the degree o
 The authors identify highly and lowly expressed genes.  The two sets were analyzed separately.  Evaluating performance with AUC – area under the receiver operating characteristic (ROC) curve – shows that bin_dev_F is comparable to **edgeR** and **DESeq2**.
 <br />
 <br />	
-The posted folder Tianmou_1 contains
+The posted folder **Tianmou_1** contains
 - an R program to 
   - read the Rdata workspace downloaded from GitHub
   - output counts and metadata to CSV files
@@ -61,7 +59,7 @@ The posted folder Tianmou_1 contains
 <br />
 <br />
 
-**Example 2:  Simulated data with parameters derived from Kang Lupus data**
+**Example 2:  Simulated data - 2 clusters, with parameters derived from Kang Lupus data**
 
 The Bioconductor web page for the **muscat** package [4] includes a vignette [5].   
 
@@ -85,11 +83,11 @@ As with the Mou et al. data, DE methods were compared by calculating the area un
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DE_classification = (  abs ( DE_parameter ) > threshold ) 
 <br />
 <br />
-AUC was calculated for 50 conditions
+AUC was calculated for 60 conditions
 <br />
 
 - 10 simulated data sets
-- 5 thresholds
+- 6 thresholds
 <br />
 
 For each condition, bin_dev_F is compared with **edgeR** and **DESeq2**  by calculating the differences
@@ -98,7 +96,7 @@ For each condition, bin_dev_F is compared with **edgeR** and **DESeq2**  by calc
 - AUC ( bin_dev_F ) – AUC ( **edgeR** )
 - AUC ( bin_dev_F ) – AUC ( **DESeq2** )
 <br />
-For the 50 conditions, bin_dev_F performance is
+For the 60 conditions, bin_dev_F performance is
 <br />
 
 - almost as good as **edgeR**
@@ -106,7 +104,7 @@ For the 50 conditions, bin_dev_F performance is
 <br />
 <br />	
   
-The posted folder Kang_Bcells  contains
+The posted folder **Kang_Bcells_2_clusters**  contains
 - an R program that
   - follows the muscat Bioconductor vignette [5]
   - prepares simulated data with **splatter**
@@ -117,7 +115,7 @@ The posted folder Kang_Bcells  contains
   - compare the three methods’ results
 - two PDF files
   - scatter plots and ROC curves for a single simulated data set
-  - violin plots of the difference of AUC between bin_dev_F and both **edgeR** and **DESeq2** for the 50 data conditions analyzed
+  - violin plots of the difference of AUC between bin_dev_F and both **edgeR** and **DESeq2** for the 60 data conditions analyzed
 <br />
 <br /> 	 
 
@@ -140,4 +138,5 @@ https://www.frontiersin.org/article/10.3389/fgene.2019.01331
 7. http://www.bioconductor.org/packages/release/bioc/html/splatter.html
 
 8. http://www.bioconductor.org/packages/release/bioc/vignettes/splatter/inst/doc/splatter.html
+
  

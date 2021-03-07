@@ -162,14 +162,14 @@ def scatter_plot ( df_plot, x, y, x_label, y_label ):
 def ROC_plots ( DE_threshold ):
   global title1, title2
   
-  df_compare_methods_notNA_DE['DE'] = ( df_compare_methods_notNA_DE['true_DE'] > DE_threshold ).astype(int)
-  number_DE = df_compare_methods_notNA_DE['DE'].sum()  
+  df_compare_methods_notNA['DE'] = ( df_compare_methods_notNA['abs_true_DE'] > DE_threshold ).astype(int)
+  number_DE = df_compare_methods_notNA['DE'].sum()  
   
   dict_method_ROCs = {}
   for stat,color in zip ( method_stat_list, line_color_list ):
-    fpr, tpr, thresholds = metrics.roc_curve(  df_compare_methods_notNA_DE['DE'].values,  np.abs ( df_compare_methods_notNA_DE[stat].values ) ) 
+    fpr, tpr, thresholds = metrics.roc_curve(  df_compare_methods_notNA['DE'].values,  np.abs ( df_compare_methods_notNA[stat].values ) ) 
     df_ROC = pd.DataFrame ( data = zip ( fpr,tpr ), columns = ['fpr','tpr'] )    
-    AUC = metrics.roc_auc_score(  df_compare_methods_notNA_DE['DE'].values,  np.abs ( df_compare_methods_notNA_DE[stat].values ) ) 
+    AUC = metrics.roc_auc_score(  df_compare_methods_notNA['DE'].values,  np.abs ( df_compare_methods_notNA[stat].values ) ) 
     dict_method_ROCs[ stat ] = { 'df_ROC':df_ROC, 'AUC': AUC, 'color':color }       
  
     
@@ -207,7 +207,7 @@ def ROC_plots ( DE_threshold ):
  
 #########################################################################################
  
-work_folder =  "D:/scRNA-seq_DE/simulation_Kang_Bcells"
+work_folder =  "D:/scRNA-seq_DE/simulation_Kang_Bcells_2_clusters"
 data_path = Path ( work_folder )
 
 AUC_DE_simulations_dsn = data_path / "AUC_DE_simulations.pkl"
@@ -220,6 +220,10 @@ plot_base = "compare_methods_"
 Excel_base = "compare_methods_"
  
 
+# csv output base
+compare_base = "compare_bin_dev_F_with_edgeR_DESeq2_" 
+
+
 # csv input base dsns 
 splatter_counts_base  = "splatter_counts_" 
 splatter_rows_base = "splatter_rows_"
@@ -229,6 +233,7 @@ edgeR_DESeq2_base     = "splatter_DE_"
 ######################################################################################################################################
 
 number_of_simulations = 10
+n_groups = 2
  
 
 method_stat_list =  ['edgeR_F', 'DESeq2_stat', 'bin_dev_F']
@@ -245,12 +250,14 @@ for simulation in  range(1, 1 + number_of_simulations ):
   column_data_csv = splatter_columns_base + str_sim + ".csv"
   counts_csv = splatter_counts_base + str_sim + ".csv"
   edgeR_DESeq2_csv = edgeR_DESeq2_base + str_sim + ".csv"
+  compare_csv = compare_base + str_sim + ".csv"  
   plot_pdf = plot_base + str_sim + ".pdf"
 
   row_data_dsn = data_path / row_data_csv  
   column_data_dsn = data_path / column_data_csv
   counts_dsn = data_path /  counts_csv
   edgeR_DESeq2_dsn = data_path / edgeR_DESeq2_csv
+  compare_dsn = data_path / compare_csv  
   plot_dsn = data_path / plot_pdf
   pdf_pages = PdfPages( plot_dsn )  
 
@@ -272,33 +279,36 @@ for simulation in  range(1, 1 + number_of_simulations ):
   print (  '\n\n\n df_counts: \n\n', df_counts )
 
   df_edgeR_DESeq2 = pd.read_csv ( edgeR_DESeq2_dsn, index_col=1 ).drop ( columns=['Unnamed: 0'] )
+  df_edgeR_DESeq2['log10_edgeR_F'] = np.log10 ( df_edgeR_DESeq2['edgeR_F'] )    
   print (  '\n\n\n df_edgeR_DESeq2 \n\n', df_edgeR_DESeq2 )
 
 
   print (  '\n\n\n\n calculate changes in binomial deviance' ) 
   df_changes_in_binomial_deviance,  df_NLL = calculate_changes_in_binomial_deviance ( df_counts )
 
-  df_compare = pd.concat ( [ df_changes_in_binomial_deviance, df_edgeR_DESeq2 ], axis=1, sort=False ) 
-  df_compare['log10_edgeR_F'] = np.log10 ( df_compare['edgeR_F'] )
-  print (  '\n\n\n df_compare: \n\n', df_compare )  
-   
-  df_compare_methods_notNA = df_compare.loc [ df_compare['bin_dev_F'].notna() ]
-  df_compare_methods_notNA_DE = df_compare_methods_notNA.merge ( df_row_data, how='left', left_index=True, right_index=True )
 
+
+  df_compare = pd.concat ( [ df_row_data , df_edgeR_DESeq2, df_changes_in_binomial_deviance ], axis=1, sort=False ) 
+  print (  '\n\n\n df_compare: \n\n', df_compare )     
+ 
+  df_compare_methods_notNA = df_compare.loc [ df_compare['bin_dev_F'].notna() ]  
+  
+  df_compare.to_csv ( compare_dsn )      
+  
   n_genes = df_compare.shape[0]  
        
   
-  title1 = "Splatter simulated data set " + str_sim  
+  title1 = "Splatter simulated data with " +  str( n_groups )  + " clusters - data set " + str_sim   
   title2 = "\n parameters derived from " + str ( n_genes ) + " most highly expressed genes - Kang Lupus B cell data"
   
   title3 = '\n compare DESeq2 statistic to true DE parameter'
-  scatter_plot ( df_compare_methods_notNA_DE,  'true_DE', 'DESeq2_stat', 'true Differential Expression parameter', 'DESeq2 statistic' )
+  scatter_plot ( df_compare_methods_notNA,  'true_DE', 'DESeq2_stat', 'true Differential Expression parameter', 'DESeq2 statistic' )
 
   title3 = '\n compare edgeR F-statistic to true DE parameter'   
-  scatter_plot ( df_compare_methods_notNA_DE,  'true_DE', 'log10_edgeR_F', 'true Differential Expression parameter', 'Log10 ( edgeR F-statistic )' )
+  scatter_plot ( df_compare_methods_notNA,  'true_DE', 'log10_edgeR_F', 'true Differential Expression parameter', 'Log10 ( edgeR F-statistic )' )
 
   title3 = '\n compare binomial deviance F-statistic to true DE parameter'   
-  scatter_plot ( df_compare_methods_notNA_DE,  'true_DE', 'log10_bin_dev_F', 'true Differential Expression parameter', 'Log10 ( binomial deviance F statistic )' )
+  scatter_plot ( df_compare_methods_notNA,  'true_DE', 'log10_bin_dev_F', 'true Differential Expression parameter', 'Log10 ( binomial deviance F statistic )' )
     
   
   
