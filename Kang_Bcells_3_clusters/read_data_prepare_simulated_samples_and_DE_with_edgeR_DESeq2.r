@@ -13,7 +13,7 @@ edgeR  <- function ( counts_array, group_data )
 
   DGE_List_power = estimateGLMTrendedDisp  (DGE_List, design_anova, method="power" )
   fit = glmQLFit( DGE_List_power, design_anova )
-  qlf = glmQLFTest( fit, coef=2:2 )
+  qlf = glmQLFTest( fit, coef=2:3 )
   edgeR_results = qlf$table
 
   FDR <- p.adjust(qlf$table$PValue, method="BH")
@@ -37,7 +37,8 @@ DESeq2 <- function ( counts_array, group_data )
                                   design= ~ group_data )
 								
   dds <- DESeq(dds )
-  DESeq2_results <- results(dds)
+  dds <- DESeq(dds, test="LRT", reduced=~1) 
+  DESeq2_results <- results(dds) 
   df_DESeq2_results = as.data.frame( DESeq2_results )
  
   df_DESeq2 = dplyr::select ( df_DESeq2_results, stat, padj )
@@ -65,14 +66,14 @@ library ( DESeq2 )
 
 number_of_simulations = 10
 
-folder = "D:/scRNA-seq_DE/simulation_Kang_Bcells_2_clusters"
+folder =  "D:/scRNA-seq_DE/simulation_Kang_Bcells_3_clusters/"
 
 # output base dsns 
 
 splatter_counts_base   <-  paste0 ( folder, "splatter_counts_" ) 
 splatter_rows_base     <-  paste0 ( folder, "splatter_rows_" )
 splatter_columns_base  <-  paste0 ( folder, "splatter_columns_" ) 
-splatter_DE_base      <-  paste0 ( folder, "splatter_DE_" ) 
+splatter_DE_base       <-  paste0 ( folder, "splatter_DE_" ) 
 
 ################################################################################################################################ 
  
@@ -160,7 +161,7 @@ for ( simulation in 1:number_of_simulations )
   print ( paste ( "simulation: ", str_sim ) )
 
   params <- setParams(params0, seed=10000 + simulation )
-  sim <- splatSimulateGroups(params, group.prob = c(0.5, 0.5), de.prob = 0.3 )
+  sim <- splatSimulateGroups(params, group.prob = c(0.33, 0.33, 0.34), de.prob = 0.3 )
 
 
   col_data = colData( sim )
